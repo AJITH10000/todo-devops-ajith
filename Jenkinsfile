@@ -4,7 +4,6 @@ pipeline {
     environment {
         APP_REPO   = "https://github.com/Praj122/TodoSummaryAssistant.git"
         APP_BRANCH = "main"
-
         DOCKER_IMAGE = "ajithkumarreddy/todo-backend"
     }
 
@@ -20,12 +19,12 @@ pipeline {
         stage('Generate Image Tag') {
             steps {
                 script {
-                    COMMIT = sh(
+                    def commit = sh(
                         script: "git rev-parse --short HEAD",
                         returnStdout: true
                     ).trim()
 
-                    env.IMAGE_TAG = "${BUILD_NUMBER}-${COMMIT}"
+                    env.IMAGE_TAG = "${BUILD_NUMBER}-${commit}"
                 }
             }
         }
@@ -41,6 +40,7 @@ pipeline {
         stage('Prepare Docker Context') {
             steps {
                 sh '''
+                test -f Dockerfile || { echo "❌ Dockerfile missing in DevOps repo root"; exit 1; }
                 cp Dockerfile Backend/todo-summary-assistant/
                 cp .dockerignore Backend/todo-summary-assistant/ 2>/dev/null || true
                 '''
