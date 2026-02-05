@@ -1,38 +1,40 @@
-
 pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "ajithkumarreddy/todo-backend"
+        APP_REPO = "https://github.com/Praj122/TodoSummaryAssistant.git"
+        APP_BRANCH = "main"
 
-        DOCKER_TAG = "${env.BUILD_NUMBER}"
+        DOCKER_IMAGE = "ajithkumarreddy/todo-backend"
+        DOCKER_TAG = "${BUILD_NUMBER}-${GIT_COMMIT}"
     }
 
     stages {
 
-        stage('Checkout') {
+        stage('Checkout Application') {
             steps {
-                git 'https://github.com/Praj122/TodoSummaryAssistant.git'
+                deleteDir()
+                git branch: "${APP_BRANCH}", url: "${APP_REPO}"
             }
         }
 
-        stage('Build with Maven') {
+        stage('Build') {
             steps {
                 dir('Backend/todo-summary-assistant') {
-                    sh 'mvn clean package -DskipTests'
+                    sh 'mvn -B clean package -DskipTests'
                 }
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Docker Build') {
             steps {
                 dir('Backend/todo-summary-assistant') {
-                    sh 'docker build -t $DOCKER_IMAGE:$DOCKER_TAG .'
+                    sh 'docker build -t $DOCKER_IMAGE:$BUILD_NUMBER .'
                 }
             }
         }
 
-        stage('Push Docker Image') {
+        stage('Push Image') {
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub-creds',
@@ -41,11 +43,10 @@ pipeline {
                 )]) {
                     sh '''
                     echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                    docker push $DOCKER_IMAGE:$DOCKER_TAG
+                    docker push $DOCKER_IMAGE:$BUILD_NUMBER
                     '''
                 }
             }
         }
     }
 }
-
