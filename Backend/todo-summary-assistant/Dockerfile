@@ -1,28 +1,25 @@
-# ---------- Stage 1: Build ----------
+# ---------- Build Stage ----------
 FROM maven:3.9.9-eclipse-temurin-17 AS builder
 
-WORKDIR /app
+WORKDIR /build
 
 COPY pom.xml .
-RUN mvn dependency:go-offline
+RUN mvn -B -q -e -C -DskipTests package || true
 
 COPY src ./src
+RUN mvn -B clean package -DskipTests
 
-RUN mvn clean package -DskipTests
-
-
-# ---------- Stage 2: Runtime ----------
-FROM eclipse-temurin:17-jre-alpine
+# ---------- Runtime Stage ----------
+FROM eclipse-temurin:17-jre-jammy
 
 WORKDIR /app
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 
-COPY --from=builder /app/target/*.jar app.jar
+COPY --from=builder /build/target/*.jar app.jar
 
 USER appuser
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
-
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
