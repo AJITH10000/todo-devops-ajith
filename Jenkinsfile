@@ -2,11 +2,10 @@ pipeline {
     agent any
 
     environment {
-        APP_REPO = "https://github.com/Praj122/TodoSummaryAssistant.git"
+        APP_REPO   = "https://github.com/Praj122/TodoSummaryAssistant.git"
         APP_BRANCH = "main"
 
         DOCKER_IMAGE = "ajithkumarreddy/todo-backend"
-        DOCKER_TAG = "${BUILD_NUMBER}-${GIT_COMMIT}"
     }
 
     stages {
@@ -18,7 +17,20 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Generate Image Tag') {
+            steps {
+                script {
+                    COMMIT = sh(
+                        script: "git rev-parse --short HEAD",
+                        returnStdout: true
+                    ).trim()
+
+                    env.IMAGE_TAG = "${BUILD_NUMBER}-${COMMIT}"
+                }
+            }
+        }
+
+        stage('Build Jar') {
             steps {
                 dir('Backend/todo-summary-assistant') {
                     sh 'mvn -B clean package -DskipTests'
@@ -26,10 +38,19 @@ pipeline {
             }
         }
 
+        stage('Prepare Docker Context') {
+            steps {
+                sh '''
+                cp Dockerfile Backend/todo-summary-assistant/
+                cp .dockerignore Backend/todo-summary-assistant/ 2>/dev/null || true
+                '''
+            }
+        }
+
         stage('Docker Build') {
             steps {
                 dir('Backend/todo-summary-assistant') {
-                    sh 'docker build -t $DOCKER_IMAGE:$BUILD_NUMBER .'
+                    sh 'docker build -t $DOCKER_IMAGE:$IMAGE_TAG .'
                 }
             }
         }
@@ -43,7 +64,8 @@ pipeline {
                 )]) {
                     sh '''
                     echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                    docker push $DOCKER_IMAGE:$BUILD_NUMBER
+                    docker push $DOCKER_IMAGE:$IMAGE_TAG
+                    docker logout
                     '''
                 }
             }
