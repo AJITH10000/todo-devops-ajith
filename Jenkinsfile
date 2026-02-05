@@ -2,34 +2,14 @@ pipeline {
     agent any
 
     environment {
-        APP_REPO = "https://github.com/Praj122/TodoSummaryAssistant.git"
-        APP_BRANCH = "main"
-
         DOCKER_IMAGE = "ajithkumarreddy/todo-backend"
     }
 
     stages {
 
-        stage('Checkout Application') {
+        stage('Build Docker Image') {
             steps {
-                deleteDir()
-                git branch: "${APP_BRANCH}", url: "${APP_REPO}"
-            }
-        }
-
-        stage('Build Jar') {
-            steps {
-                dir('Backend/todo-summary-assistant') {
-                    sh 'mvn -B clean package -DskipTests'
-                }
-            }
-        }
-
-        stage('Docker Build') {
-            steps {
-                dir('Backend/todo-summary-assistant') {
-                    sh 'docker build -t $DOCKER_IMAGE:$BUILD_NUMBER .'
-                }
+                sh 'docker build -t $DOCKER_IMAGE:$BUILD_NUMBER .'
             }
         }
 
@@ -43,6 +23,7 @@ pipeline {
                     sh '''
                     echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
                     docker push $DOCKER_IMAGE:$BUILD_NUMBER
+                    docker logout
                     '''
                 }
             }
