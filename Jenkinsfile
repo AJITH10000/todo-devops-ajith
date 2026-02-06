@@ -2,21 +2,39 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "ajithkumarreddy/todo-backend"
+        IMAGE_NAME = "ajithkumarreddy/todo-backend"
+        IMAGE_TAG = "${env.GIT_COMMIT}"
     }
 
     stages {
 
-        stage('Build Docker Image') {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh 'mvn -B clean package -DskipTests'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh 'mvn test'
+            }
+        }
+
+        stage('Docker Build') {
             steps {
                 sh '''
-                docker build -t $DOCKER_IMAGE:$BUILD_NUMBER .
-                docker tag $DOCKER_IMAGE:$BUILD_NUMBER $DOCKER_IMAGE:latest
+                docker build -t $IMAGE_NAME:$IMAGE_TAG .
                 '''
             }
         }
 
-        stage('Push Image') {
+        stage('Docker Push') {
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub-creds',
@@ -25,22 +43,26 @@ pipeline {
                 )]) {
                     sh '''
                     echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-
-                    docker push $DOCKER_IMAGE:$BUILD_NUMBER
-                    docker push $DOCKER_IMAGE:latest
-
+                    docker push $IMAGE_NAME:$IMAGE_TAG
                     docker logout
                     '''
                 }
             }
         }
 
-        stage('Cleanup Docker (VERY IMPORTANT)') {
+        stage('Update GitOps Repo') {
             steps {
                 sh '''
-                docker container prune -f
-                docker image prune -af
-                docker builder prune -af
+                git clone https://github.com/<your-gitops-repo>.git
+                cd <your-gitops-repo>
+
+                sed -i "s|image:.*|image: $IMAGE_NAME:$IMAGE_TAG|" k8s/deployment.yaml
+
+                git config user.email "jenkins@ci"
+                git config user.name "jenkins"
+                git add .
+                git commit -m "Update image to $IMAGE_TAG"
+                git push
                 '''
             }
         }
