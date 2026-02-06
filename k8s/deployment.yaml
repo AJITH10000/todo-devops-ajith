@@ -13,21 +13,18 @@ spec:
     matchLabels:
       app: todo
 
-  strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 0
-      maxSurge: 1
-
   template:
     metadata:
       labels:
         app: todo
 
     spec:
+      imagePullSecrets:
+        - name: regcred
+
       containers:
         - name: todo
-          image: ajithkumarreddy/todo-backend:latest
+          image: ajithkumarreddy/todo-backend:9
           imagePullPolicy: Always
 
           ports:
@@ -38,27 +35,40 @@ spec:
                 name: todo-config
             - secretRef:
                 name: todo-secret
+            - secretRef:
+                name: ai-secret
 
-          resources:
-            requests:
-              cpu: "100m"
-              memory: "128Mi"
-            limits:
-              cpu: "300m"
-              memory: "256Mi"
+          # give spring boot real startup time
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            failureThreshold: 30
+            periodSeconds: 10
 
           readinessProbe:
             httpGet:
               path: /actuator/health
               port: 8080
-            initialDelaySeconds: 20
-            periodSeconds: 5
-            failureThreshold: 5
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
 
           livenessProbe:
             httpGet:
               path: /actuator/health
               port: 8080
-            initialDelaySeconds: 40
-            periodSeconds: 10
-            failureThreshold: 5
+            initialDelaySeconds: 90
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
