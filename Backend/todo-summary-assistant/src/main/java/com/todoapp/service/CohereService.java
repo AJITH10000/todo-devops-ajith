@@ -13,8 +13,9 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class CohereService {
 
-    @Value("${cohere.api.key}")
+    @Value("${COHERE_API_KEY}")
     private String cohereApiKey;
+
 
     private final OkHttpClient httpClient;
     private final ObjectMapper objectMapper;
