@@ -4,6 +4,7 @@ pipeline {
     environment {
         IMAGE_NAME = "ajithkumarreddy/todo-backend"
         IMAGE_TAG = "${env.GIT_COMMIT}"
+        GITOPS_REPO = "github.com/AJITH10000/todo-gitops.git"
     }
 
     stages {
@@ -14,15 +15,21 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Build Backend') {
             steps {
-                sh 'mvn -B clean package -DskipTests'
+                sh '''
+                cd Backend/todo-summary-assistant
+                mvn -B clean package -DskipTests
+                '''
             }
         }
 
-        stage('Test') {
+        stage('Run Tests') {
             steps {
-                sh 'mvn test'
+                sh '''
+                cd Backend/todo-summary-assistant
+                mvn test
+                '''
             }
         }
 
@@ -52,18 +59,27 @@ pipeline {
 
         stage('Update GitOps Repo') {
             steps {
-                sh '''
-                git clone https://github.com/<your-gitops-repo>.git
-                cd <your-gitops-repo>
+                withCredentials([usernamePassword(
+                    credentialsId: 'github-creds',
+                    usernameVariable: 'GIT_USER',
+                    passwordVariable: 'GIT_TOKEN'
+                )]) {
+                    sh '''
+                    rm -rf gitops
+                    git clone https://$GIT_USER:$GIT_TOKEN@$GITOPS_REPO gitops
 
-                sed -i "s|image:.*|image: $IMAGE_NAME:$IMAGE_TAG|" k8s/deployment.yaml
+                    cd gitops/apps/todo
 
-                git config user.email "jenkins@ci"
-                git config user.name "jenkins"
-                git add .
-                git commit -m "Update image to $IMAGE_TAG"
-                git push
-                '''
+                    sed -i "s|image: .*todo-backend.*|image: $IMAGE_NAME:$IMAGE_TAG|" backend-deployment.yaml
+
+                    git config user.email "jenkins@ci"
+                    git config user.name "jenkins"
+
+                    git add .
+                    git commit -m "Update backend image to $IMAGE_TAG"
+                    git push
+                    '''
+                }
             }
         }
     }
