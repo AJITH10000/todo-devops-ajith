@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 //Springboot backend url
-const API_BASE_URL = 'http://localhost:8080/api/todos'; 
+const API_BASE_URL = 'http://13.60.78.222:31837/api/todos';
+
 
 const todoService = {
   getAllTodos: () => axios.get(API_BASE_URL),
